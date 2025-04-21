@@ -1,0 +1,21 @@
+{
+  "name": "bryhada-nest",
+  "description": "",
+  "packageManager": "pnpm@10.6.5",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "lint": "eslint . --ext ts,js,vue --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "husky": "^9.0.11",
+    "commitlint": "^19.0.3",
+    "eslint": "^9.23.0"
+  },
+  "dependencies": {
+    "@commitlint/config-conventional": "^19.1.0"
+  }
+}
