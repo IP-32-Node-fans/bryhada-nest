@@ -9,13 +9,13 @@ const AboutPage = () => {
   const searchParams = useSearchParams();
   const name = searchParams.get('name');
   if (!name) {
-    return <div>Member not found</div>;
+    return <div className="about-main flex-auto">choose member</div>;
   }
   const member = bryhada.find(
     (x) => x.name.toLowerCase() === name.toLowerCase()
   );
   if (!member) {
-    return <div>Member not found</div>;
+    return <div className="about-main flex-auto">Member not found</div>;
   }
   return (
     <>

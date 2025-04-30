@@ -16,14 +16,16 @@ export class CurrencyService {
       .filter((cur) => cur.exchangeRates.length > 0);
   }
 
+  async getAllExchangeRates(): Promise<TCurrency[]> {
+    return await this.repository.getAllRatesPromise();
+  }
+
   async getExchangeRateHistory(
     currency: string,
     fromDate: string,
     toDate: string,
   ): Promise<TCurrency[]> {
-    const rates = await new Promise<TCurrency[]>(() => {
-      this.repository.getAllRatesCallback();
-    });
+    const rates = await this.repository.getAllRatesPromise();
 
     return rates
       .filter((cur) => cur.name === currency)

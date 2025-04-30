@@ -20,11 +20,24 @@ import { UpdateCurrencyDto } from './dtos/update.dto';
 export class CurrencyController {
   constructor(private readonly currencyService: CurrencyService) {}
 
+  @Get()
+  async getAllExchangeRates(@Res() res: Response) {
+    try {
+      const rates = await this.currencyService.getAllExchangeRates();
+      res.status(200).json(rates);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      res.status(500).send(errorMessage);
+    }
+  }
+
   @Get('/rates/:date')
   async getExchangeRates(@Param('date') date: string, @Res() res: Response) {
     try {
       const rates = await this.currencyService.getExchangeRates(date);
-      res.render('rates', { rates, date });
+      res.status(200).json(rates);
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -45,7 +58,7 @@ export class CurrencyController {
         fromDate,
         toDate,
       );
-      res.render('history', { history, currency, fromDate, toDate });
+      res.status(200).json(history);
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import "./globals.css";
-import Footer from "@/components/footer";
+import "@/styles/globals.css";
+import Footer from "@/components/Footer";
 
 import { Montserrat, Pacifico } from 'next/font/google'
 
