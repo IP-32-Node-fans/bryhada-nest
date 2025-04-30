@@ -1,7 +1,7 @@
 
 export default function Home() {
   return (
-    <main>
+    <main className="flex-auto">
       <div className="container header-container">
         <h1>Ip 32 <br />node <br />fans</h1>
         <p>

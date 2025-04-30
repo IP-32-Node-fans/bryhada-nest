@@ -27,14 +27,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   return (
     <html lang="en">
       <body
-        className={`${montserrat.variable} ${pacifico.variable} flex flex-col min-h-screen`}
+        className={`${montserrat.variable} ${pacifico.variable} flex flex-col min-h-screen w-full`}
       >
-        <div className="flex-auto">
-          {children}
-        </div>
+        {children}
         <Footer />
       </body>
     </html>
