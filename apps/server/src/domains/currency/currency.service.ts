@@ -1,51 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import type { TCurrency } from '../../../types';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Rate, TCurrency } from '../../../types';
 import { CurrencyRepository } from './currency.repository';
 
 @Injectable()
 export class CurrencyService {
   constructor(private readonly repository: CurrencyRepository) {}
 
-  async getExchangeRates(date: string): Promise<TCurrency[]> {
-    const rates = await this.repository.getAllRatesPromise();
-    return rates
-      .map((cur) => ({
-        ...cur,
-        exchangeRates: cur.exchangeRates.filter((rate) => rate.date === date),
-      }))
-      .filter((cur) => cur.exchangeRates.length > 0);
-  }
-
   async getAllExchangeRates(): Promise<TCurrency[]> {
-    return await this.repository.getAllRatesPromise();
+    return await this.repository.getAllCurrencies();
   }
 
-  async getExchangeRateHistory(
-    currency: string,
+  async getRateHistory(
+    currencyId: number,
     fromDate: string,
     toDate: string,
   ): Promise<TCurrency[]> {
-    const rates = await this.repository.getAllRatesPromise();
-
-    return rates
-      .filter((cur) => cur.name === currency)
-      .map((cur) => ({
-        ...cur,
-        exchangeRates: cur.exchangeRates.filter(
-          (rate) => rate.date >= fromDate && rate.date <= toDate,
-        ),
-      }));
+    const data = await this.repository.getAllCurrencies();
+    const currencyObj = data.find((cur) => cur.id === currencyId);
+    if (!currencyObj) {
+      throw new NotFoundException('Currency not found');
+    }
+    const history = await this.repository.getRateHistory(currencyId, fromDate, toDate);
+    if (!history.length) {
+      throw new NotFoundException('No rate history found');
+    }
+    return history;
   }
 
   async createCurrency(name: string): Promise<TCurrency> {
-    const data = this.repository.getAllRatesSync();
+    const data = await this.repository.getAllCurrencies();
     if (data.some((cur) => cur.name === name)) {
-      throw new Error('Currency already exists');
+      throw new BadRequestException('Currency already exists');
     }
 
-    const newCurrency: TCurrency = { id: Date.now(), name, exchangeRates: [] };
-    data.push(newCurrency);
-    await this.repository.saveRates(data);
+    const newCurrency = await this.repository.addCurrency(name);
 
     return newCurrency;
   }
@@ -54,49 +42,38 @@ export class CurrencyService {
     currencyId: number,
     newName: string,
   ): Promise<TCurrency> {
-    const data = await this.repository.getAllRatesAsync();
-    const currency = data.find((cur) => cur.id === currencyId);
+    const data = await this.repository.findCurrencyById(currencyId);
 
-    if (!currency) {
-      throw new Error('Currency not found');
+    if (!data) {
+      throw new NotFoundException('Currency not found');
     }
-
-    currency.name = newName;
-    await this.repository.saveRates(data);
-    return currency;
+    return await this.repository.updateCurrency(currencyId, newName);
   }
 
-  async deleteCurrency(currencyId: number): Promise<void> {
-    const data = await this.repository.getAllRatesAsync();
-    const indexToDelete = data.findIndex((cur) => cur.id === currencyId);
-
-    if (indexToDelete === -1) {
-      throw new Error('Currency not found');
+  async remove(name: string): Promise<void> {
+    const data = await this.repository.findCurrencyByName(name);
+    if (!data) {
+      throw new NotFoundException('Currency not found');
     }
-
-    data.splice(indexToDelete, 1);
-    await this.repository.saveRates(data);
+    await this.repository.deleteCurrency(name);
   }
 
-  async setExchangeRate(
-    currency: string,
+  async getExchangeRatesByDay(
     date: string,
-    rate: number,
-  ): Promise<void> {
-    const data = await this.repository.getAllRatesAsync();
-    const currencyObj = data.find((cur) => cur.name === currency);
-
-    if (!currencyObj) {
-      throw new Error('Currency not found');
+  ): Promise<Rate[]> {
+    const data = await this.repository.getAllRatesByDay(date);
+    if (!data) {
+      throw new NotFoundException('data not found');
     }
 
-    const existingRate = currencyObj.exchangeRates.find((r) => r.date === date);
-    if (existingRate) {
-      existingRate.rate = rate;
-    } else {
-      currencyObj.exchangeRates.push({ date, rate });
-    }
+    return data;
+  }
 
-    await this.repository.saveRates(data);
+  async setExchangeRate(currencyId: number, date: string, rate: number): Promise<void> {
+    const data = await this.repository.findCurrencyById(currencyId);
+    if (!data) {
+      throw new NotFoundException('Currency not found');
+    }
+    await this.repository.setExchangeRate(currencyId, date, rate);
   }
 }

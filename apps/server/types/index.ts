@@ -1,11 +1,12 @@
 export type TCurrency = {
   id: number;
   name: string;
-  exchangeRates: {
-    date: string;
-    rate: number;
-  }[];
 };
+
+export type Rate = {
+  date: string;
+  rate: number;
+} & TCurrency;
 
 export type TUser = {
   id: number;

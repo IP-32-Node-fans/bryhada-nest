@@ -4,7 +4,6 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { config } from 'dotenv';
-import { PassportModule } from '@nestjs/passport';
 
 config();
 
@@ -18,7 +17,6 @@ config();
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1d' },
     }),
-    PassportModule,
   ],
 })
 export class AuthModule {}

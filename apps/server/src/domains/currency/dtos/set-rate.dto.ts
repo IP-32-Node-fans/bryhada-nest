@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class SetRateDto {
   @ApiProperty()
-  currency: string;
+  currencyId: number;
 
   @ApiProperty()
   date: string;

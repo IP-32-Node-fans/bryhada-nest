@@ -1,58 +1,56 @@
-import * as fs from 'fs';
-import * as fsPromises from 'fs/promises';
-import * as path from 'path';
 import { Injectable } from '@nestjs/common';
-import { TCurrency } from '../../../types';
+import { Rate, TCurrency } from '../../../types';
+import { DatabaseService } from 'src/database/database.service';
+import { SQL } from './currency.sql';
 
 @Injectable()
 export class CurrencyRepository {
-  private readonly filePath = path.join(
-    __dirname,
-    './data/currency-rates.json',
-  );
+  constructor(private readonly db: DatabaseService) {}
 
-  constructor() {
-    this.ensureFileExists();
+  async getAllCurrencies(): Promise<TCurrency[]> {
+    const result = await this.db.query(SQL.getAllCurrencies);
+    return result.rows;
   }
 
-  private async ensureFileExists(): Promise<void> {
-    try {
-      await fsPromises.access(this.filePath, fs.constants.F_OK);
-    } catch {
-      // Створюємо файл із порожнім масивом
-      await fsPromises.mkdir(path.dirname(this.filePath), { recursive: true });
-      await fsPromises.writeFile(this.filePath, '[]', 'utf-8');
-    }
+  async addCurrency(currencyName: string): Promise<TCurrency> {
+    await this.db.query(SQL.createCurrency, [currencyName]);
+    const currency = await this.db.query(SQL.findCurrencyByName, [currencyName]);
+    return currency.rows[0];
   }
 
-  getAllRatesSync(): TCurrency[] {
-    return JSON.parse(fs.readFileSync(this.filePath, 'utf-8')) as TCurrency[];
+  async deleteCurrency(name: string): Promise<void> {
+    await this.db.query(SQL.deleteCurrency, [name]);
   }
 
-  getAllRatesCallback(): Promise<TCurrency[]> {
-    return new Promise((resolve, reject) => {
-      fs.readFile(this.filePath, 'utf-8', (err, data) => {
-        if (err) reject(err);
-        else resolve(JSON.parse(data) as TCurrency[]);
-      });
-    });
+  async updateCurrency(id: number, name: string): Promise<TCurrency> {
+    const currency =await this.db.query(SQL.updateCurrency, [id, name]);
+    return currency.rows[0];
   }
 
-  getAllRatesPromise(): Promise<TCurrency[]> {
-    return fsPromises.readFile(this.filePath, 'utf-8').then(JSON.parse);
+  async findCurrencyByName(name: string): Promise<TCurrency[]> {
+    const result = await this.db.query(SQL.findCurrencyByName, [name]);
+    return result.rows[0];
+  }
+  async findCurrencyById(id: number): Promise<TCurrency[]> {
+    const result = await this.db.query(SQL.findCurrencyById, [id]);
+    return result.rows[0];
   }
 
-  async getAllRatesAsync(): Promise<TCurrency[]> {
-    const data = await fsPromises.readFile(this.filePath, 'utf-8');
-    return JSON.parse(data) as TCurrency[];
+  async getAllRatesByDay(date: string): Promise<Rate[]> {
+    const result = await this.db.query(SQL.getRatesByDay, [date]);
+    return result.rows;
   }
 
-  async saveRates(rates: TCurrency[]): Promise<void> {
-    await fsPromises.writeFile(
-      this.filePath,
-      JSON.stringify(rates, null, 2),
-      'utf-8',
-    );
-    console.log(`File created: ${this.filePath}`);
+  async getRateHistory(currencyId: number, fromDate: string, toDate: string): Promise<Rate[]> {
+    const result = await this.db.query(SQL.getRateHistory, [
+      currencyId,
+      fromDate,
+      toDate,
+    ]);
+    return result.rows;
+  }
+
+  async setExchangeRate(currencyId: number, date: string, rate: number): Promise<void> {
+    await this.db.query(SQL.setExchangeRate, [currencyId, date, rate]);
   }
 }
