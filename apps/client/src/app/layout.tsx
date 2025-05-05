@@ -31,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
+        suppressHydrationWarning={true}
         className={`${montserrat.variable} ${pacifico.variable} flex flex-col min-h-screen w-full`}
       >
         {children}
