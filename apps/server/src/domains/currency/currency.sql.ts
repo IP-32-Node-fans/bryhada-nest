@@ -13,16 +13,35 @@ export const SQL = {
       UNIQUE(currency_id, date)
     );
   `,
+
   dropTables: `
     DROP TABLE IF EXISTS exchange_rates;
     DROP TABLE IF EXISTS currencies;
   `,
-  createCurrency: `INSERT INTO currencies (name) VALUES ($1) RETURNING *;`,
-  getAllCurrencies: `SELECT * FROM currencies;`,
-  deleteCurrency: `DELETE FROM currencies WHERE name = $1;`,
-  updateCurrency: `UPDATE currencies SET name = $2 WHERE id = $1 RETURNING *;`,
-  findCurrencyByName: `SELECT * FROM currencies WHERE name = $1;`,
-  findCurrencyById: `SELECT * FROM currencies WHERE id = $1;`,
+
+  createCurrency: `
+    INSERT INTO currencies (name) VALUES ($1) RETURNING *;
+  `,
+
+  getAllCurrencies: `
+    SELECT * FROM currencies;
+  `,
+
+  deleteCurrency: `
+    DELETE FROM currencies WHERE name = $1;
+  `,
+
+  updateCurrency: `
+    UPDATE currencies SET name = $2 WHERE id = $1 RETURNING *;
+  `,
+
+  findCurrencyByName: `
+    SELECT * FROM currencies WHERE name = $1;
+  `,
+
+  findCurrencyById: `
+    SELECT * FROM currencies WHERE id = $1;
+  `,
 
   setExchangeRate: `
     INSERT INTO exchange_rates (currency_id, date, rate)
@@ -37,6 +56,7 @@ export const SQL = {
     JOIN exchange_rates r ON c.id = r.currency_id
     WHERE r.date = $1;
   `,
+
   getRateHistory: `
     SELECT c.id, c.name, r.date, r.rate
     FROM currencies c
@@ -44,6 +64,7 @@ export const SQL = {
     WHERE c.id = $1 AND r.date BETWEEN $2 AND $3
     ORDER BY r.date;
   `,
+
   getAllRates: `
     SELECT c.name, r.date, r.rate
     FROM exchange_rates r

@@ -7,7 +7,6 @@ import {
 import { Pool } from 'pg';
 import { ConfigService } from '@nestjs/config';
 import { SQL } from '../domains/currency/currency.sql';
-import { HealthCheckError, HealthIndicatorService } from '@nestjs/terminus';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy, OnModuleInit {
@@ -29,7 +28,9 @@ export class DatabaseService implements OnModuleDestroy, OnModuleInit {
     this.logger.log('✅ Migrations successfully created.');
   }
 
-  query = (text: string, params?: any[]) => this.pool.query(text, params);
+  async query(text: string, params?: any[]) {
+    return this.pool.query(text, params);
+  }
 
   async onModuleDestroy() {
     await this.pool.end();
