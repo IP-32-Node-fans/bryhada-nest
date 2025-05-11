@@ -1,13 +1,13 @@
 import {
   Injectable,
   Logger,
-  LoggerService,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { Pool } from 'pg';
 import { ConfigService } from '@nestjs/config';
 import { SQL } from '../domains/currency/currency.sql';
+import { HealthCheckError, HealthIndicatorService } from '@nestjs/terminus';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy, OnModuleInit {
