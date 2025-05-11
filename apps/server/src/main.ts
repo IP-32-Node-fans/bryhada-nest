@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
-import * as process from "node:process";
+import { Logger, ValidationPipe } from '@nestjs/common';
+import * as process from 'node:process';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,6 +14,8 @@ async function bootstrap() {
     credentials: true,
   });
 
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
   const config = new DocumentBuilder()
     .setTitle('Cryptocurrency API')
     .setDescription('The cryptocurrency API description')
@@ -24,7 +26,7 @@ async function bootstrap() {
   const swaggerEnabled = process.env.DISABLE_SWAGGER !== 'true';
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory, {
-    swaggerUiEnabled: swaggerEnabled
+    swaggerUiEnabled: swaggerEnabled,
   });
 
   await app.listen(process.env.PORT ?? 5000);
