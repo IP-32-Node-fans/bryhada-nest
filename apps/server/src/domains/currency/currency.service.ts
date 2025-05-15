@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Rate, TCurrency } from '../../../types';
 import { CurrencyRepository } from './currency.repository';
 
@@ -14,13 +18,17 @@ export class CurrencyService {
     currencyId: number,
     fromDate: string,
     toDate: string,
-  ): Promise<TCurrency[]> {
+  ): Promise<Rate[]> {
     const data = await this.repository.getAllCurrencies();
     const currencyObj = data.find((cur) => cur.id === currencyId);
     if (!currencyObj) {
       throw new NotFoundException('Currency not found');
     }
-    const history = await this.repository.getRateHistory(currencyId, fromDate, toDate);
+    const history = await this.repository.getRateHistory(
+      currencyId,
+      fromDate,
+      toDate,
+    );
     if (!history.length) {
       throw new NotFoundException('No rate history found');
     }
@@ -58,9 +66,7 @@ export class CurrencyService {
     await this.repository.deleteCurrency(name);
   }
 
-  async getExchangeRatesByDay(
-    date: string,
-  ): Promise<Rate[]> {
+  async getExchangeRatesByDay(date: string): Promise<Rate[]> {
     const data = await this.repository.getAllRatesByDay(date);
     if (!data) {
       throw new NotFoundException('data not found');
@@ -69,7 +75,11 @@ export class CurrencyService {
     return data;
   }
 
-  async setExchangeRate(currencyId: number, date: string, rate: number): Promise<void> {
+  async setExchangeRate(
+    currencyId: number,
+    date: string,
+    rate: number,
+  ): Promise<void> {
     const data = await this.repository.findCurrencyById(currencyId);
     if (!data) {
       throw new NotFoundException('Currency not found');

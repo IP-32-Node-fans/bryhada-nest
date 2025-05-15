@@ -14,7 +14,9 @@ export class CurrencyRepository {
 
   async addCurrency(currencyName: string): Promise<TCurrency> {
     await this.db.query(SQL.createCurrency, [currencyName]);
-    const currency = await this.db.query(SQL.findCurrencyByName, [currencyName]);
+    const currency = await this.db.query(SQL.findCurrencyByName, [
+      currencyName,
+    ]);
     return currency.rows[0];
   }
 
@@ -23,7 +25,7 @@ export class CurrencyRepository {
   }
 
   async updateCurrency(id: number, name: string): Promise<TCurrency> {
-    const currency =await this.db.query(SQL.updateCurrency, [id, name]);
+    const currency = await this.db.query(SQL.updateCurrency, [id, name]);
     return currency.rows[0];
   }
 
@@ -31,6 +33,7 @@ export class CurrencyRepository {
     const result = await this.db.query(SQL.findCurrencyByName, [name]);
     return result.rows[0];
   }
+
   async findCurrencyById(id: number): Promise<TCurrency[]> {
     const result = await this.db.query(SQL.findCurrencyById, [id]);
     return result.rows[0];
@@ -41,7 +44,11 @@ export class CurrencyRepository {
     return result.rows;
   }
 
-  async getRateHistory(currencyId: number, fromDate: string, toDate: string): Promise<Rate[]> {
+  async getRateHistory(
+    currencyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<Rate[]> {
     const result = await this.db.query(SQL.getRateHistory, [
       currencyId,
       fromDate,
@@ -50,7 +57,11 @@ export class CurrencyRepository {
     return result.rows;
   }
 
-  async setExchangeRate(currencyId: number, date: string, rate: number): Promise<void> {
+  async setExchangeRate(
+    currencyId: number,
+    date: string,
+    rate: number,
+  ): Promise<void> {
     await this.db.query(SQL.setExchangeRate, [currencyId, date, rate]);
   }
 }
