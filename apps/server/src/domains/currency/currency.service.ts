@@ -3,76 +3,141 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Rate, TCurrency } from '../../../types';
-import { CurrencyRepository } from './currency.repository';
+import type { TCurrencyWithRates, TCurrency } from '../../../types';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { ExchangeRates } from '@prisma/client';
 
 @Injectable()
 export class CurrencyService {
-  constructor(private readonly repository: CurrencyRepository) {}
+  constructor(private readonly prismaService: PrismaService) {}
 
-  async getAllExchangeRates(): Promise<TCurrency[]> {
-    return await this.repository.getAllCurrencies();
+  async getAllExchangeRates(): Promise<TCurrencyWithRates[]> {
+    return this.prismaService.currency.findMany({
+      include: {
+        exchangeRates: true,
+      },
+    });
   }
 
   async getRateHistory(
     currencyId: number,
     fromDate: string,
     toDate: string,
-  ): Promise<Rate[]> {
-    const data = await this.repository.getAllCurrencies();
-    const currencyObj = data.find((cur) => cur.id === currencyId);
-    if (!currencyObj) {
+  ): Promise<ExchangeRates[]> {
+    const currency = await this.prismaService.currency.findUnique({
+      where: { id: currencyId },
+    });
+
+    if (!currency) {
       throw new NotFoundException('Currency not found');
     }
-    const history = await this.repository.getRateHistory(
-      currencyId,
-      fromDate,
-      toDate,
-    );
+
+    const history = await this.prismaService.exchangeRates.findMany({
+      where: {
+        currencyId: currencyId,
+        date: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    });
+
     if (!history.length) {
       throw new NotFoundException('No rate history found');
     }
+
     return history;
   }
 
   async createCurrency(name: string): Promise<TCurrency> {
-    const data = await this.repository.getAllCurrencies();
-    if (data.some((cur) => cur.name === name)) {
+    const existedCurrency = await this.prismaService.currency.findUnique({
+      where: {
+        name,
+      },
+    });
+
+    if (existedCurrency) {
       throw new BadRequestException('Currency already exists');
     }
 
-    const newCurrency = await this.repository.addCurrency(name);
-
-    return newCurrency;
+    return this.prismaService.currency.create({
+      data: {
+        name,
+      },
+    });
   }
 
   async updateCurrency(
     currencyId: number,
     newName: string,
   ): Promise<TCurrency> {
-    const data = await this.repository.findCurrencyById(currencyId);
+    const currency = await this.prismaService.currency.findUnique({
+      where: { id: currencyId },
+    });
 
-    if (!data) {
+    if (!currency) {
       throw new NotFoundException('Currency not found');
     }
-    return await this.repository.updateCurrency(currencyId, newName);
+
+    return await this.prismaService.currency.update({
+      where: {
+        id: currencyId,
+      },
+      data: {
+        name: newName,
+      },
+    });
   }
 
-  async remove(name: string): Promise<void> {
-    const data = await this.repository.findCurrencyByName(name);
-    if (!data) {
+  async removeCurrency(name: string): Promise<TCurrency> {
+    const currency = await this.prismaService.currency.findUnique({
+      where: { name },
+    });
+
+    if (!currency) {
       throw new NotFoundException('Currency not found');
     }
-    await this.repository.deleteCurrency(name);
+
+    return this.prismaService.currency.delete({
+      where: { name },
+    });
   }
 
-  async getExchangeRatesByDay(date: string): Promise<Rate[]> {
-    const data = await this.repository.getAllRatesByDay(date);
-    if (!data) {
-      throw new NotFoundException('data not found');
+  async getExchangeRatesByDay(date: string): Promise<TCurrencyWithRates[]> {
+    if (isNaN(Date.parse(date))) {
+      throw new BadRequestException('Invalid date format');
     }
 
-    return data;
+    const currencies = await this.prismaService.currency.findMany({
+      where: {
+        exchangeRates: {
+          some: { date },
+        },
+      },
+      include: {
+        exchangeRates: {
+          where: { date },
+          orderBy: { date: 'asc' },
+        },
+      },
+    });
+
+    if (currencies.length === 0) {
+      throw new NotFoundException(`No exchange rates found for date ${date}`);
+    }
+
+    return currencies.map((c) => ({
+      id: c.id,
+      name: c.name,
+      exchangeRates: c.exchangeRates.map((r) => ({
+        id: r.id,
+        date: r.date,
+        rate: r.rate,
+      })),
+    }));
   }
 
   async setExchangeRate(
@@ -80,10 +145,38 @@ export class CurrencyService {
     date: string,
     rate: number,
   ): Promise<void> {
-    const data = await this.repository.findCurrencyById(currencyId);
-    if (!data) {
+    if (isNaN(Date.parse(date))) {
+      throw new BadRequestException('Invalid date format');
+    }
+
+    const currency = await this.prismaService.currency.findUnique({
+      where: { id: currencyId },
+    });
+
+    if (!currency) {
       throw new NotFoundException('Currency not found');
     }
-    await this.repository.setExchangeRate(currencyId, date, rate);
+
+    const existing = await this.prismaService.exchangeRates.findFirst({
+      where: {
+        currencyId,
+        date,
+      },
+    });
+
+    if (existing) {
+      await this.prismaService.exchangeRates.update({
+        where: { id: existing.id },
+        data: { rate },
+      });
+    } else {
+      await this.prismaService.exchangeRates.create({
+        data: {
+          currencyId,
+          date,
+          rate,
+        },
+      });
+    }
   }
 }

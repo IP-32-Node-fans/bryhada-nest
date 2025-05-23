@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PickType } from '@nestjs/swagger';
 
 export class TCurrency {
   @ApiProperty({ example: 1, description: 'Currency ID' })
@@ -8,7 +8,10 @@ export class TCurrency {
   name: string;
 }
 
-export class Rate extends TCurrency {
+export class TExchangeRate {
+  @ApiProperty({ example: 1, description: 'Exchange rate record ID' })
+  id: number;
+
   @ApiProperty({
     example: '2024-01-01',
     description: 'Date of the exchange rate (ISO format)',
@@ -17,9 +20,20 @@ export class Rate extends TCurrency {
 
   @ApiProperty({
     example: 52.14,
-    description: 'Exchange rate for the currency on the specified date',
+    description: 'Exchange rate value for this date',
   })
   rate: number;
+}
+
+export class TCurrencyWithRates extends PickType(TCurrency, [
+  'id',
+  'name',
+] as const) {
+  @ApiProperty({
+    type: [TExchangeRate],
+    description: 'List of historical exchange rates for this currency',
+  })
+  exchangeRates: TExchangeRate[];
 }
 
 export class TUser {
