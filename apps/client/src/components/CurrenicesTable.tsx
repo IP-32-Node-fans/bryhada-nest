@@ -1,4 +1,9 @@
-import React from 'react'
+'use client'
+
+import { useEffect, useState } from 'react'
+import axios from 'axios'
+import CreateCurrencyForm from './CreateCurrencyForm'
+import CurrencyRow from './CurrencyRow'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 
 interface Rate {
@@ -12,35 +17,42 @@ interface Currency {
   exchangeRates: Rate[]
 }
 
-const CurrenciesTable = async () => {
-  const data = await fetch('http://localhost:5000/currency/')
-  const currencies = await data.json()
-  console.log(currencies)
-  if (!currencies) {
-    return <div>Loading...</div>
+export default function CurrenciesTable() {
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+
+  const fetchCurrencies = async () => {
+    const res = await axios.get('http://localhost:5000/currency')
+    setCurrencies(res.data)
   }
+
+  useEffect(() => {
+    fetchCurrencies()
+  }, [])
+
   return (
-    <div className='flex flex-col w-full gap-3 text-start'>
-      <Table className='w-full'>
+    <div className="flex flex-col w-full gap-3 text-start">
+      <CreateCurrencyForm onSuccess={fetchCurrencies} />
+      <Table className="w-full">
         <TableHeader>
           <TableRow>
             <TableHead className="w-[100px]">Id</TableHead>
             <TableHead>Назва</TableHead>
             <TableHead>Курс</TableHead>
+            <TableHead>Дії</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currencies.map((currency: Currency) => (
-            <TableRow key={currency.id}>
-              <TableCell className="font-medium">{currency.id}</TableCell>
-              <TableCell>{currency.name}</TableCell>
-              <TableCell>{currency.exchangeRates[0]?.rate ?? 'Відсутня'}</TableCell>
-            </TableRow>
+          {currencies.map((currency) => (
+            <CurrencyRow
+              key={currency.id}
+              id={currency.id}
+              name={currency.name}
+              rate={currency.exchangeRates?.[0]?.rate ?? 0}
+              onChange={fetchCurrencies}
+            />
           ))}
         </TableBody>
       </Table>
     </div>
   )
 }
-
-export default CurrenciesTable

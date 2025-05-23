@@ -34,10 +34,11 @@ export class CurrencyRepository {
     return result.rows[0];
   }
 
-  async findCurrencyById(id: number): Promise<TCurrency[]> {
-    const result = await this.db.query(SQL.findCurrencyById, [id]);
-    return result.rows[0];
-  }
+  async findCurrencyById(id: number): Promise<TCurrency | null> {
+  const result = await this.db.query(SQL.findCurrencyById, [id]);
+  return result.rows[0] ?? null;
+}
+
 
   async getAllRatesByDay(date: string): Promise<Rate[]> {
     const result = await this.db.query(SQL.getRatesByDay, [date]);
