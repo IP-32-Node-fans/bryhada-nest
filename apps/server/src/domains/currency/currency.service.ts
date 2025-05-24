@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { TCurrencyWithRates, TCurrency } from '../../../types';
+import type {
+  TCurrencyWithRates,
+  TCurrency,
+  TExchangeRate,
+} from '../../../types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ExchangeRates } from '@prisma/client';
 
@@ -53,20 +57,12 @@ export class CurrencyService {
   }
 
   async createCurrency(name: string): Promise<TCurrency> {
-    const existedCurrency = await this.prismaService.currency.findUnique({
-      where: {
-        name,
-      },
-    });
-
-    if (existedCurrency) {
-      throw new BadRequestException('Currency already exists');
-    }
-
-    return this.prismaService.currency.create({
-      data: {
-        name,
-      },
+    return this.prismaService.$transaction(async (tx) => {
+      const existed = await tx.currency.findUnique({ where: { name } });
+      if (existed) {
+        throw new BadRequestException('Currency already exists');
+      }
+      return tx.currency.create({ data: { name } });
     });
   }
 
@@ -74,35 +70,27 @@ export class CurrencyService {
     currencyId: number,
     newName: string,
   ): Promise<TCurrency> {
-    const currency = await this.prismaService.currency.findUnique({
-      where: { id: currencyId },
-    });
-
-    if (!currency) {
-      throw new NotFoundException('Currency not found');
-    }
-
-    return await this.prismaService.currency.update({
-      where: {
-        id: currencyId,
-      },
-      data: {
-        name: newName,
-      },
+    return this.prismaService.$transaction(async (tx) => {
+      const currency = await tx.currency.findUnique({
+        where: { id: currencyId },
+      });
+      if (!currency) {
+        throw new NotFoundException('Currency not found');
+      }
+      return tx.currency.update({
+        where: { id: currencyId },
+        data: { name: newName },
+      });
     });
   }
 
   async removeCurrency(name: string): Promise<TCurrency> {
-    const currency = await this.prismaService.currency.findUnique({
-      where: { name },
-    });
-
-    if (!currency) {
-      throw new NotFoundException('Currency not found');
-    }
-
-    return this.prismaService.currency.delete({
-      where: { name },
+    return this.prismaService.$transaction(async (tx) => {
+      const currency = await tx.currency.findUnique({ where: { name } });
+      if (!currency) {
+        throw new NotFoundException('Currency not found');
+      }
+      return tx.currency.delete({ where: { name } });
     });
   }
 
@@ -144,39 +132,33 @@ export class CurrencyService {
     currencyId: number,
     date: string,
     rate: number,
-  ): Promise<void> {
+  ): Promise<TExchangeRate> {
     if (isNaN(Date.parse(date))) {
       throw new BadRequestException('Invalid date format');
     }
 
-    const currency = await this.prismaService.currency.findUnique({
-      where: { id: currencyId },
-    });
-
-    if (!currency) {
-      throw new NotFoundException('Currency not found');
-    }
-
-    const existing = await this.prismaService.exchangeRates.findFirst({
-      where: {
-        currencyId,
-        date,
-      },
-    });
-
-    if (existing) {
-      await this.prismaService.exchangeRates.update({
-        where: { id: existing.id },
-        data: { rate },
+    return this.prismaService.$transaction(async (tx) => {
+      const currency = await tx.currency.findUnique({
+        where: { id: currencyId },
       });
-    } else {
-      await this.prismaService.exchangeRates.create({
-        data: {
-          currencyId,
-          date,
-          rate,
-        },
+      if (!currency) {
+        throw new NotFoundException('Currency not found');
+      }
+
+      const existing = await tx.exchangeRates.findFirst({
+        where: { currencyId, date },
       });
-    }
+
+      if (existing) {
+        return tx.exchangeRates.update({
+          where: { id: existing.id },
+          data: { rate },
+        });
+      } else {
+        return tx.exchangeRates.create({
+          data: { currencyId, date, rate },
+        });
+      }
+    });
   }
 }

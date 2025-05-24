@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
   Param,
   Post,
   Put,
@@ -104,16 +103,16 @@ export class CurrencyController {
   @ApiOperation({ summary: 'Delete a currency by name' })
   @ApiResponse({ status: 204, description: 'Currency deleted successfully' })
   @ApiResponse({ status: 404, description: 'Currency not found' })
-  async deleteCurrency(@Body() { name }: { name: string }): Promise<void> {
-    await this.currencyService.removeCurrency(name);
+  async deleteCurrency(@Body() { name }: { name: string }): Promise<TCurrency> {
+    return this.currencyService.removeCurrency(name);
   }
 
   @UseGuards(AuthGuard, AdminGuard)
   @Post('/rates')
   @ApiOperation({ summary: 'Set exchange rate for a currency' })
   @ApiResponse({ status: 201, description: 'Rate set successfully' })
-  async setRate(@Body() dto: SetRateDto): Promise<void> {
-    await this.currencyService.setExchangeRate(
+  async setRate(@Body() dto: SetRateDto): Promise<TExchangeRate> {
+    return this.currencyService.setExchangeRate(
       dto.currencyId,
       dto.date,
       dto.rate,
