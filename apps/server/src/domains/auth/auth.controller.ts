@@ -23,15 +23,11 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
-    console.log(loginDto);
-
-    return await this.authService.authenciate(loginDto);
+    return await this.authService.authenticate(loginDto);
   }
 
-  @Post('login')
+  @Post('register')
   async register(@Body() registerDto: RegisterDto) {
-    console.log(registerDto);
-
-    return await this.authService.authenciate(registerDto);
+    return await this.authService.register(registerDto);
   }
 }
