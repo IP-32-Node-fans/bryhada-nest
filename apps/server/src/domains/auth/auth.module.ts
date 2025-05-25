@@ -4,8 +4,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { config } from 'dotenv';
-import { PrismaModule } from 'src/prisma/prisma.module';
-
+import { DatabaseModule } from '../../../database/database.module';
 config();
 
 @Module({
@@ -13,7 +12,7 @@ config();
   controllers: [AuthController],
   imports: [
     UsersModule,
-    PrismaModule,
+    DatabaseModule,
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,

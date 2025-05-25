@@ -5,7 +5,7 @@ import { HealthModule } from './domains/health/health.module';
 import { UsersModule } from './domains/users/users.module';
 import { AuthModule } from './domains/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './prisma/prisma.module';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
@@ -13,12 +13,13 @@ import { PrismaModule } from './prisma/prisma.module';
     HealthModule,
     UsersModule,
     AuthModule,
-    PrismaModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    DatabaseModule, 
   ],
   controllers: [],
   providers: [],
 })
 export class AppModule {}
+

@@ -18,7 +18,7 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @Get('me')
   getUserInfo(@Request() req: Request) {
-    return req['user'] as { userId: string; email: string };
+    return req['user'] as { userId: string; email: string; role: string };
   }
 
   @Post('login')

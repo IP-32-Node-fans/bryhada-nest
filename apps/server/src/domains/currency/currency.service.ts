@@ -4,161 +4,131 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
-  TCurrencyWithRates,
   TCurrency,
+  TCurrencyWithRates,
   TExchangeRate,
 } from '../../../types';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { ExchangeRates } from '@prisma/client';
+import { DatabaseService } from '../../../database/database.service';
 
 @Injectable()
 export class CurrencyService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAllExchangeRates(): Promise<TCurrencyWithRates[]> {
-    return this.prismaService.currency.findMany({
-      include: {
-        exchangeRates: true,
-      },
-    });
+    const query = `
+      SELECT c.id, c.name, r.id as rate_id, r.rate, r.date
+      FROM currencies c
+      LEFT JOIN exchange_rates r ON r.currency_id = c.id
+      ORDER BY c.id, r.date DESC;
+    `;
+    const { rows } = await this.db.query(query);
+
+    const grouped: Record<number, TCurrencyWithRates> = {};
+    for (const row of rows) {
+      if (!grouped[row.id]) {
+        grouped[row.id] = { id: row.id, name: row.name, exchangeRates: [] };
+      }
+      if (row.rate_id) {
+        grouped[row.id].exchangeRates.push({
+          id: row.rate_id,
+          date: row.date,
+          rate: row.rate,
+        });
+      }
+    }
+    return Object.values(grouped);
   }
 
-  async getRateHistory(
-    currencyId: number,
-    fromDate: string,
-    toDate: string,
-  ): Promise<ExchangeRates[]> {
-    const currency = await this.prismaService.currency.findUnique({
-      where: { id: currencyId },
-    });
+  async getRateHistory(currencyId: number, fromDate: string, toDate: string): Promise<TExchangeRate[]> {
+    const { rows: currency } = await this.db.query('SELECT * FROM currencies WHERE id = $1', [currencyId]);
+    if (!currency.length) throw new NotFoundException('Currency not found');
 
-    if (!currency) {
-      throw new NotFoundException('Currency not found');
-    }
+    const { rows } = await this.db.query(
+      'SELECT * FROM exchange_rates WHERE currency_id = $1 AND date BETWEEN $2 AND $3 ORDER BY date ASC',
+      [currencyId, fromDate, toDate],
+    );
 
-    const history = await this.prismaService.exchangeRates.findMany({
-      where: {
-        currencyId: currencyId,
-        date: {
-          gte: fromDate,
-          lte: toDate,
-        },
-      },
-      orderBy: {
-        date: 'asc',
-      },
-    });
-
-    if (!history.length) {
-      throw new NotFoundException('No rate history found');
-    }
-
-    return history;
+    if (!rows.length) throw new NotFoundException('No rate history found');
+    return rows;
   }
 
   async createCurrency(name: string): Promise<TCurrency> {
-    return this.prismaService.$transaction(async (tx) => {
-      const existed = await tx.currency.findUnique({ where: { name } });
-      if (existed) {
-        throw new BadRequestException('Currency already exists');
-      }
-      return tx.currency.create({ data: { name } });
-    });
+    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE name = $1', [name]);
+    if (existing.length) throw new BadRequestException('Currency already exists');
+
+    const { rows } = await this.db.query(
+      'INSERT INTO currencies (name) VALUES ($1) RETURNING *',
+      [name],
+    );
+    return rows[0];
   }
 
-  async updateCurrency(
-    currencyId: number,
-    newName: string,
-  ): Promise<TCurrency> {
-    return this.prismaService.$transaction(async (tx) => {
-      const currency = await tx.currency.findUnique({
-        where: { id: currencyId },
-      });
-      if (!currency) {
-        throw new NotFoundException('Currency not found');
-      }
-      return tx.currency.update({
-        where: { id: currencyId },
-        data: { name: newName },
-      });
-    });
+  async updateCurrency(currencyId: number, newName: string): Promise<TCurrency> {
+    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE id = $1', [currencyId]);
+    if (!existing.length) throw new NotFoundException('Currency not found');
+
+    const { rows } = await this.db.query(
+      'UPDATE currencies SET name = $1 WHERE id = $2 RETURNING *',
+      [newName, currencyId],
+    );
+    return rows[0];
   }
 
   async removeCurrency(name: string): Promise<TCurrency> {
-    return this.prismaService.$transaction(async (tx) => {
-      const currency = await tx.currency.findUnique({ where: { name } });
-      if (!currency) {
-        throw new NotFoundException('Currency not found');
-      }
-      return tx.currency.delete({ where: { name } });
-    });
+    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE name = $1', [name]);
+    if (!existing.length) throw new NotFoundException('Currency not found');
+
+    const { rows } = await this.db.query('DELETE FROM currencies WHERE name = $1 RETURNING *', [name]);
+    return rows[0];
   }
 
   async getExchangeRatesByDay(date: string): Promise<TCurrencyWithRates[]> {
-    if (isNaN(Date.parse(date))) {
-      throw new BadRequestException('Invalid date format');
+    if (isNaN(Date.parse(date))) throw new BadRequestException('Invalid date format');
+
+    const { rows } = await this.db.query(
+      `SELECT c.id, c.name, r.id as rate_id, r.rate, r.date
+       FROM currencies c
+       JOIN exchange_rates r ON r.currency_id = c.id
+       WHERE r.date = $1
+       ORDER BY r.date ASC`,
+      [date],
+    );
+
+    if (!rows.length) throw new NotFoundException(`No exchange rates found for date ${date}`);
+
+    const grouped: Record<number, TCurrencyWithRates> = {};
+    for (const row of rows) {
+      if (!grouped[row.id]) {
+        grouped[row.id] = { id: row.id, name: row.name, exchangeRates: [] };
+      }
+      grouped[row.id].exchangeRates.push({ id: row.rate_id, rate: row.rate, date: row.date });
     }
-
-    const currencies = await this.prismaService.currency.findMany({
-      where: {
-        exchangeRates: {
-          some: { date },
-        },
-      },
-      include: {
-        exchangeRates: {
-          where: { date },
-          orderBy: { date: 'asc' },
-        },
-      },
-    });
-
-    if (currencies.length === 0) {
-      throw new NotFoundException(`No exchange rates found for date ${date}`);
-    }
-
-    return currencies.map((c) => ({
-      id: c.id,
-      name: c.name,
-      exchangeRates: c.exchangeRates.map((r) => ({
-        id: r.id,
-        date: r.date,
-        rate: r.rate,
-      })),
-    }));
+    return Object.values(grouped);
   }
 
-  async setExchangeRate(
-    currencyId: number,
-    date: string,
-    rate: number,
-  ): Promise<TExchangeRate> {
-    if (isNaN(Date.parse(date))) {
-      throw new BadRequestException('Invalid date format');
+  async setExchangeRate(currencyId: number, date: string, rate: number): Promise<TExchangeRate> {
+    if (isNaN(Date.parse(date))) throw new BadRequestException('Invalid date format');
+
+    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE id = $1', [currencyId]);
+    if (!existing.length) throw new NotFoundException('Currency not found');
+
+    const { rows: foundRate } = await this.db.query(
+      'SELECT * FROM exchange_rates WHERE currency_id = $1 AND date = $2',
+      [currencyId, date],
+    );
+
+    if (foundRate.length) {
+      const { rows } = await this.db.query(
+        'UPDATE exchange_rates SET rate = $1 WHERE id = $2 RETURNING *',
+        [rate, foundRate[0].id],
+      );
+      return rows[0];
+    } else {
+      const { rows } = await this.db.query(
+        'INSERT INTO exchange_rates (currency_id, date, rate) VALUES ($1, $2, $3) RETURNING *',
+        [currencyId, date, rate],
+      );
+      return rows[0];
     }
-
-    return this.prismaService.$transaction(async (tx) => {
-      const currency = await tx.currency.findUnique({
-        where: { id: currencyId },
-      });
-      if (!currency) {
-        throw new NotFoundException('Currency not found');
-      }
-
-      const existing = await tx.exchangeRates.findFirst({
-        where: { currencyId, date },
-      });
-
-      if (existing) {
-        return tx.exchangeRates.update({
-          where: { id: existing.id },
-          data: { rate },
-        });
-      } else {
-        return tx.exchangeRates.create({
-          data: { currencyId, date, rate },
-        });
-      }
-    });
   }
 }

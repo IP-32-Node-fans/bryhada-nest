@@ -1,19 +1,16 @@
 import {
   ConflictException,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
-  BadRequestException,
 } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dtos/register.dto';
+import { DatabaseService } from '../../../database/database.service';
 
 type AuthInput = { email: string; password: string };
 
-type Role = 'user' | 'admin';
+type Role = 'USER' | 'ADMIN';
 
 type SignInData = {
   userId: number;
@@ -33,8 +30,8 @@ type AuthResult = {
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
+    private readonly db: DatabaseService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async authenticate(input: AuthInput): Promise<AuthResult> {
@@ -45,37 +42,51 @@ export class AuthService {
     return this.signIn(data);
   }
 
-  async register(input: RegisterDto): Promise<User> {
-    const existing = await this.usersService.findByEmail(input.email);
-
+  async register(input: RegisterDto) {
+    const existing = await this.findByEmail(input.email);
     if (existing) {
       throw new ConflictException('User with this email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(input.password, 10);
 
-    return this.usersService.create(
+    const role = input.isAdmin ? 'admin' : 'user';
+
+    const insertQuery = `
+      INSERT INTO users (email, username, password, role)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, email, username, role;
+    `;
+
+    const result = await this.db.query(insertQuery, [
       input.email,
       input.username,
       hashedPassword,
-      input.isAdmin,
-    );
+      role,
+    ]);
+
+    return result.rows[0];
   }
 
   private async validateUser(input: AuthInput): Promise<SignInData | null> {
-    const user = await this.usersService.findByEmail(input.email);
+    const user = await this.findByEmail(input.email);
     if (!user) return null;
 
-    const isMatches = await bcrypt.compare(input.password, user.password);
-
-    if (!isMatches) return null;
+    const isMatch = await bcrypt.compare(input.password, user.password);
+    if (!isMatch) return null;
 
     return {
       userId: user.id,
       email: user.email,
       username: user.username,
-      role: user.role as Role,
+      role: user.role,
     };
+  }
+
+  private async findByEmail(email: string) {
+    const query = 'SELECT * FROM users WHERE email = $1 LIMIT 1';
+    const result = await this.db.query(query, [email]);
+    return result.rows[0];
   }
 
   private async signIn(user: SignInData): Promise<AuthResult> {
