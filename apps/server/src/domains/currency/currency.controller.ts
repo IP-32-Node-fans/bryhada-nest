@@ -25,7 +25,7 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 export class CurrencyController {
   constructor(private readonly currencyService: CurrencyService) {}
 
-  @UseGuards(AuthGuard, AdminGuard)
+  @UseGuards(AuthGuard)
   @Get()
   @ApiOperation({ summary: 'Get all exchange rates' })
   @ApiResponse({
