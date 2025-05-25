@@ -37,7 +37,7 @@ model ExchangeRates {
   rate       Float
   date       String
   currencyId Int      @map("currency_id")
-  currency   Currency @relation(fields: [currencyId], references: [id])
+  currency   Currency @relation(fields: [currencyId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt() @map("updated_at")

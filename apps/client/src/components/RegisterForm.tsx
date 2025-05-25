@@ -49,7 +49,7 @@ export function RegisterForm({
         username,
         email,
         password,
-        isAdmin: isAdmin ? "true" : "false",
+        isAdmin: isAdmin,
       }),
     })
 

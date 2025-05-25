@@ -36,6 +36,7 @@ export default function CurrenciesTable() {
   const [editedRate, setEditedRate] = useState("")
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState<Rate[] | null>(null)
+  const [newCurrencyName, setNewCurrencyName] = useState("")
 
   const isAdmin = typeof window !== "undefined" && localStorage.getItem("role") === "ADMIN"
 
@@ -66,6 +67,27 @@ export default function CurrenciesTable() {
 
     fetchCurrencies()
   }, [])
+
+  const handleAddCurrency = async () => {
+    if (!newCurrencyName.trim()) return
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch("http://localhost:5000/currency", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify({ name: newCurrencyName.trim() }),
+      })
+      if (res.ok) {
+        setNewCurrencyName("")
+        location.reload()
+      }
+    } catch (e) {
+      console.error("Не вдалося додати валюту:", e)
+    }
+  }
 
   const openModal = (currency: Currency, type: "edit" | "delete") => {
     setSelectedCurrency(currency)
@@ -144,12 +166,24 @@ export default function CurrenciesTable() {
 
   return (
     <div className="flex flex-col w-full gap-3 text-start">
+      {isAdmin && (
+        <div className="flex gap-2 items-center mb-4">
+          <Input
+            placeholder="Нова валюта"
+            value={newCurrencyName}
+            onChange={(e) => setNewCurrencyName(e.target.value)}
+          />
+          <Button onClick={handleAddCurrency}>Додати</Button>
+        </div>
+      )}
+
       <Table className="w-full">
         <TableHeader>
           <TableRow>
             <TableHead className="w-[100px]">Id</TableHead>
             <TableHead>Назва</TableHead>
             <TableHead>Курс</TableHead>
+            <TableHead>Дата</TableHead>
             {isAdmin && <TableHead>Дії</TableHead>}
           </TableRow>
         </TableHeader>
@@ -164,6 +198,7 @@ export default function CurrenciesTable() {
                 {currency.name}
               </TableCell>
               <TableCell>{currency.exchangeRates?.[0]?.rate ?? "—"}</TableCell>
+              <TableCell>{currency.exchangeRates?.[0]?.date ?? "—"}</TableCell>
               {isAdmin && (
                 <TableCell className="flex gap-2">
                   <button
