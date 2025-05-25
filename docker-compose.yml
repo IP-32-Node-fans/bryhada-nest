@@ -12,6 +12,7 @@ services:
       POSTGRES_DB: nestdb
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./apps/server/database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
 volumes:
   pgdata:

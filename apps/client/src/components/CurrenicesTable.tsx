@@ -38,7 +38,7 @@ export default function CurrenciesTable() {
   const [history, setHistory] = useState<Rate[] | null>(null)
   const [newCurrencyName, setNewCurrencyName] = useState("")
 
-  const isAdmin = typeof window !== "undefined" && localStorage.getItem("role") === "ADMIN"
+  const isAdmin = typeof window !== "undefined" && localStorage.getItem("role") === "admin"
 
   useEffect(() => {
     const fetchCurrencies = async () => {
@@ -145,14 +145,11 @@ export default function CurrenciesTable() {
   const fetchHistory = async (currency: Currency) => {
     try {
       const token = localStorage.getItem("token")
-      const res = await fetch(
-        `http://localhost:5000/currency/rates/${currency.id}/2023-01-01/2025-12-31`,
-        {
-          headers: {
-            Authorization: `Bearer ${token ?? ""}`,
-          },
-        }
-      )
+      const res = await fetch(`http://localhost:5000/currency/rates/${currency.id}/2023-01-01/2025-12-31`, {
+        headers: {
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+      })
       const data = await res.json()
       setHistory(data)
       setSelectedCurrency(currency)
@@ -198,7 +195,11 @@ export default function CurrenciesTable() {
                 {currency.name}
               </TableCell>
               <TableCell>{currency.exchangeRates?.[0]?.rate ?? "—"}</TableCell>
-              <TableCell>{currency.exchangeRates?.[0]?.date ?? "—"}</TableCell>
+              <TableCell>
+                {currency.exchangeRates?.[0]?.date
+                  ? new Date(currency.exchangeRates[0].date).toLocaleDateString("uk-UA")
+                  : "—"}
+              </TableCell>
               {isAdmin && (
                 <TableCell className="flex gap-2">
                   <button
@@ -253,9 +254,7 @@ export default function CurrenciesTable() {
             )}
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="ghost" onClick={closeModal}>Скасувати</Button>
-              <Button variant="destructive" onClick={confirmAction}>
-                Підтвердити
-              </Button>
+              <Button variant="destructive" onClick={confirmAction}>Підтвердити</Button>
             </div>
           </div>
         </div>
@@ -277,7 +276,7 @@ export default function CurrenciesTable() {
               <TableBody>
                 {history.map((rate, i) => (
                   <TableRow key={i}>
-                    <TableCell>{rate.date}</TableCell>
+                    <TableCell>{new Date(rate.date).toLocaleDateString("uk-UA")}</TableCell>
                     <TableCell>{rate.rate}</TableCell>
                   </TableRow>
                 ))}
