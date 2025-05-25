@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import type {
   TCurrency,
@@ -53,33 +54,72 @@ export class CurrencyService {
   }
 
   async createCurrency(name: string): Promise<TCurrency> {
-    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE name = $1', [name]);
-    if (existing.length) throw new BadRequestException('Currency already exists');
+    const client = await this.db.getClient();
+    try {
+      await client.query('BEGIN');
 
-    const { rows } = await this.db.query(
-      'INSERT INTO currencies (name) VALUES ($1) RETURNING *',
-      [name],
-    );
-    return rows[0];
+      const existing = await client.query('SELECT * FROM currencies WHERE name = $1', [name]);
+      if (existing.rows.length) throw new BadRequestException('Currency already exists');
+
+      const result = await client.query(
+        'INSERT INTO currencies (name) VALUES ($1) RETURNING *',
+        [name],
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async updateCurrency(currencyId: number, newName: string): Promise<TCurrency> {
-    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE id = $1', [currencyId]);
-    if (!existing.length) throw new NotFoundException('Currency not found');
+    const client = await this.db.getClient();
+    try {
+      await client.query('BEGIN');
 
-    const { rows } = await this.db.query(
-      'UPDATE currencies SET name = $1 WHERE id = $2 RETURNING *',
-      [newName, currencyId],
-    );
-    return rows[0];
+      const existing = await client.query('SELECT * FROM currencies WHERE id = $1', [currencyId]);
+      if (!existing.rows.length) throw new NotFoundException('Currency not found');
+
+      const result = await client.query(
+        'UPDATE currencies SET name = $1 WHERE id = $2 RETURNING *',
+        [newName, currencyId],
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async removeCurrency(name: string): Promise<TCurrency> {
-    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE name = $1', [name]);
-    if (!existing.length) throw new NotFoundException('Currency not found');
+    const client = await this.db.getClient();
+    try {
+      await client.query('BEGIN');
 
-    const { rows } = await this.db.query('DELETE FROM currencies WHERE name = $1 RETURNING *', [name]);
-    return rows[0];
+      const existing = await client.query('SELECT * FROM currencies WHERE name = $1', [name]);
+      if (!existing.rows.length) throw new NotFoundException('Currency not found');
+
+      const result = await client.query(
+        'DELETE FROM currencies WHERE name = $1 RETURNING *',
+        [name],
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async getExchangeRatesByDay(date: string): Promise<TCurrencyWithRates[]> {
@@ -109,26 +149,38 @@ export class CurrencyService {
   async setExchangeRate(currencyId: number, date: string, rate: number): Promise<TExchangeRate> {
     if (isNaN(Date.parse(date))) throw new BadRequestException('Invalid date format');
 
-    const { rows: existing } = await this.db.query('SELECT * FROM currencies WHERE id = $1', [currencyId]);
-    if (!existing.length) throw new NotFoundException('Currency not found');
+    const client = await this.db.getClient();
+    try {
+      await client.query('BEGIN');
 
-    const { rows: foundRate } = await this.db.query(
-      'SELECT * FROM exchange_rates WHERE currency_id = $1 AND date = $2',
-      [currencyId, date],
-    );
+      const existingCurrency = await client.query('SELECT * FROM currencies WHERE id = $1', [currencyId]);
+      if (!existingCurrency.rows.length) throw new NotFoundException('Currency not found');
 
-    if (foundRate.length) {
-      const { rows } = await this.db.query(
-        'UPDATE exchange_rates SET rate = $1 WHERE id = $2 RETURNING *',
-        [rate, foundRate[0].id],
+      const existingRate = await client.query(
+        'SELECT * FROM exchange_rates WHERE currency_id = $1 AND date = $2',
+        [currencyId, date],
       );
-      return rows[0];
-    } else {
-      const { rows } = await this.db.query(
-        'INSERT INTO exchange_rates (currency_id, date, rate) VALUES ($1, $2, $3) RETURNING *',
-        [currencyId, date, rate],
-      );
-      return rows[0];
+
+      let result;
+      if (existingRate.rows.length) {
+        result = await client.query(
+          'UPDATE exchange_rates SET rate = $1 WHERE id = $2 RETURNING *',
+          [rate, existingRate.rows[0].id],
+        );
+      } else {
+        result = await client.query(
+          'INSERT INTO exchange_rates (currency_id, date, rate) VALUES ($1, $2, $3) RETURNING *',
+          [currencyId, date, rate],
+        );
+      }
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
     }
   }
 }
