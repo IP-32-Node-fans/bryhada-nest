@@ -40,31 +40,31 @@ export default function CurrenciesTable() {
 
   const isAdmin = typeof window !== "undefined" && localStorage.getItem("role") === "ADMIN"
 
-  useEffect(() => {
-    const fetchCurrencies = async () => {
-      try {
-        const token = localStorage.getItem("token")
-        const res = await fetch("http://localhost:5000/currency", {
-          headers: {
-            Authorization: `Bearer ${token ?? ""}`,
-          },
-        })
+  const fetchCurrencies = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/currency`, {
+        headers: {
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+      })
 
-        const data = await res.json()
+      const data = await res.json()
 
-        if (!res.ok) {
-          console.error("API error:", data)
-          return
-        }
-
-        setCurrencies(data)
-      } catch (err) {
-        console.error("Fetch error:", err)
-      } finally {
-        setLoading(false)
+      if (!res.ok) {
+        console.error("API error:", data)
+        return
       }
-    }
 
+      setCurrencies(data)
+    } catch (err) {
+      console.error("Fetch error:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchCurrencies()
   }, [])
 
@@ -72,7 +72,7 @@ export default function CurrenciesTable() {
     if (!newCurrencyName.trim()) return
     try {
       const token = localStorage.getItem("token")
-      const res = await fetch("http://localhost:5000/currency", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/currency`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export default function CurrenciesTable() {
       })
       if (res.ok) {
         setNewCurrencyName("")
-        location.reload()
+        await fetchCurrencies()
       }
     } catch (e) {
       console.error("Не вдалося додати валюту:", e)
@@ -100,6 +100,11 @@ export default function CurrenciesTable() {
   const closeModal = () => {
     setModalOpen(false)
     setSelectedCurrency(null)
+    setEditedName("")
+    setEditedRate("")
+    setShowHistory(false)
+    setHistory(null)
+    setNewCurrencyName("")
   }
 
   const confirmAction = async () => {
@@ -107,7 +112,7 @@ export default function CurrenciesTable() {
     if (!selectedCurrency) return
 
     if (modalType === "edit") {
-      await fetch(`http://localhost:5000/currency/${selectedCurrency.id}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/currency/${selectedCurrency.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -116,7 +121,7 @@ export default function CurrenciesTable() {
         body: JSON.stringify({ name: editedName }),
       })
 
-      await fetch(`http://localhost:5000/currency/rates`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/currency/rates`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -128,8 +133,9 @@ export default function CurrenciesTable() {
           date: new Date().toISOString().split("T")[0],
         }),
       })
+      closeModal()
     } else {
-      await fetch(`http://localhost:5000/currency`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/currency`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -137,16 +143,17 @@ export default function CurrenciesTable() {
         },
         body: JSON.stringify({ name: selectedCurrency.name }),
       })
+      closeModal()
     }
 
-    location.reload()
+    await fetchCurrencies()
   }
 
   const fetchHistory = async (currency: Currency) => {
     try {
       const token = localStorage.getItem("token")
       const res = await fetch(
-        `http://localhost:5000/currency/rates/${currency.id}/2023-01-01/2025-12-31`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/currency/rates/${currency.id}/2023-01-01/2025-12-31`,
         {
           headers: {
             Authorization: `Bearer ${token ?? ""}`,
