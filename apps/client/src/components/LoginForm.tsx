@@ -1,4 +1,5 @@
 "use client"
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,32 +12,53 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
+import { useState } from "react"
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
-    const username = formData.get("username")
+    const email = formData.get("email")
     const password = formData.get("password")
 
-    fetch("http://localhost:5000/auth/login", {
-      method: "POST",
-      body: JSON.stringify({
-        username,
-        password,
-      }),
-    })
-      .then((response) => {
-          console.log(response)
+    if (typeof email !== "string" || typeof password !== "string") {
+      setError("Невірні дані форми")
+      return
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       })
-      .catch((error) => {
-        console.error("Error:", error)
-    })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.message || "Помилка входу")
+        return
+      }
+
+      localStorage.setItem("token", data.accessToken)
+      localStorage.setItem("role", data.role)
+      console.log("✅ Токен збережено:", data.accessToken)
+      console.log("✅ Роль юзера:", data.role)
+      setError(null)
+
+      window.location.href = "/currencies"
+
+    } catch (err) {
+      console.error("❌ Помилка мережі:", err)
+      setError("Сервер недоступний")
+    }
   }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -50,18 +72,10 @@ export function LoginForm({
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="username"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="m@example.com"
                   required
@@ -77,8 +91,16 @@ export function LoginForm({
                     Forgot your password?
                   </Link>
                 </div>
-                <Input id="password" type="password" required />
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                />
               </div>
+              {error && (
+                <div className="text-sm text-red-500">{error}</div>
+              )}
               <Button type="submit" className="w-full">
                 Login
               </Button>

@@ -4,6 +4,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { config } from 'dotenv';
+import { PrismaModule } from 'src/prisma/prisma.module';
 
 config();
 
@@ -12,6 +13,7 @@ config();
   controllers: [AuthController],
   imports: [
     UsersModule,
+    PrismaModule,
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,

@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
   Param,
   Post,
   Put,
@@ -18,43 +17,51 @@ import { CurrencyService } from './currency.service';
 import { DateParamDto } from './dtos/date-param.dto';
 import { CurrencyHistoryParamsDto } from './dtos/currency-history-params.dto';
 import { CurrencyIdParamDto } from './dtos/currency-id-param.dto';
-import { Rate, TCurrency } from '../../../types';
+import { TCurrencyWithRates, TExchangeRate, TCurrency } from 'types';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @ApiTags('Currency')
 @Controller('currency')
 export class CurrencyController {
   constructor(private readonly currencyService: CurrencyService) {}
 
+  @UseGuards(AuthGuard)
   @Get()
   @ApiOperation({ summary: 'Get all exchange rates' })
   @ApiResponse({
     status: 200,
     description: 'List of all currencies and their rates',
-    type: [TCurrency],
+    example: '',
   })
-  async getAllExchangeRates(): Promise<TCurrency[]> {
+  async getAllExchangeRates(): Promise<TCurrencyWithRates[]> {
     return this.currencyService.getAllExchangeRates();
   }
 
+  @UseGuards(AuthGuard)
   @Get('/rates/:date')
   @ApiOperation({ summary: 'Get exchange rates by date' })
   @ApiResponse({
     status: 200,
     description: 'Rates for the specified date',
-    type: [Rate],
+    type: [TCurrencyWithRates],
   })
-  async getExchangeRates(@Param() dto: DateParamDto): Promise<Rate[]> {
+  async getExchangeRates(
+    @Param() dto: DateParamDto,
+  ): Promise<TCurrencyWithRates[]> {
     return this.currencyService.getExchangeRatesByDay(dto.date);
   }
 
+  @UseGuards(AuthGuard)
   @Get('/rates/:currencyId/:fromDate/:toDate')
   @ApiOperation({ summary: 'Get currency rate history' })
   @ApiResponse({
     status: 200,
     description: 'Rate history for currency',
-    type: [Rate],
+    type: [TExchangeRate],
   })
-  async getHistory(@Param() dto: CurrencyHistoryParamsDto): Promise<Rate[]> {
+  async getHistory(
+    @Param() dto: CurrencyHistoryParamsDto,
+  ): Promise<TExchangeRate[]> {
     return this.currencyService.getRateHistory(
       dto.currencyId,
       dto.fromDate,
@@ -62,7 +69,7 @@ export class CurrencyController {
     );
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(AuthGuard, AdminGuard)
   @Post()
   @ApiOperation({ summary: 'Create a new currency' })
   @ApiResponse({
@@ -70,11 +77,12 @@ export class CurrencyController {
     description: 'Currency created successfully',
     type: TCurrency,
   })
+  @ApiResponse({ status: 404, description: 'Currency already exists' })
   async createCurrency(@Body() dto: CreateCurrencyDto): Promise<TCurrency> {
     return this.currencyService.createCurrency(dto.name);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(AuthGuard, AdminGuard)
   @Put('/:id')
   @ApiOperation({ summary: 'Update a currency' })
   @ApiResponse({
@@ -82,6 +90,7 @@ export class CurrencyController {
     description: 'Currency updated successfully',
     type: TCurrency,
   })
+  @ApiResponse({ status: 404, description: 'Currency not found' })
   async updateCurrency(
     @Param() idDto: CurrencyIdParamDto,
     @Body() dto: UpdateCurrencyDto,
@@ -89,21 +98,21 @@ export class CurrencyController {
     return this.currencyService.updateCurrency(idDto.id, dto.name);
   }
 
-  @HttpCode(204)
-  @UseGuards(AdminGuard)
+  @UseGuards(AuthGuard, AdminGuard)
   @Delete()
   @ApiOperation({ summary: 'Delete a currency by name' })
   @ApiResponse({ status: 204, description: 'Currency deleted successfully' })
-  async deleteCurrency(@Body() { name }: { name: string }): Promise<void> {
-    await this.currencyService.remove(name);
+  @ApiResponse({ status: 404, description: 'Currency not found' })
+  async deleteCurrency(@Body() { name }: { name: string }): Promise<TCurrency> {
+    return this.currencyService.removeCurrency(name);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(AuthGuard, AdminGuard)
   @Post('/rates')
   @ApiOperation({ summary: 'Set exchange rate for a currency' })
   @ApiResponse({ status: 201, description: 'Rate set successfully' })
-  async setRate(@Body() dto: SetRateDto): Promise<void> {
-    await this.currencyService.setExchangeRate(
+  async setRate(@Body() dto: SetRateDto): Promise<TExchangeRate> {
+    return this.currencyService.setExchangeRate(
       dto.currencyId,
       dto.date,
       dto.rate,
