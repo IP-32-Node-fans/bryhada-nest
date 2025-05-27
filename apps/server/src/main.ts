@@ -20,6 +20,16 @@ async function bootstrap() {
     .setDescription('The cryptocurrency API description')
     .setVersion('1.0')
     .addTag('cryptocurrency')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+    )
     .build();
 
   const swaggerEnabled = process.env.DISABLE_SWAGGER !== 'true';

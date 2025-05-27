@@ -10,17 +10,57 @@ import type {
 } from '../../../types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ExchangeRates } from '@prisma/client';
+import { GetExchangeRatesQueryDto } from './dtos/get-all-rates.dto';
+import { PaginatedExchangeRatesResponseDto } from './dtos/pagination.dto';
 
 @Injectable()
 export class CurrencyService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async getAllExchangeRates(): Promise<TCurrencyWithRates[]> {
-    return this.prismaService.currency.findMany({
-      include: {
-        exchangeRates: true,
+  async getAllExchangeRates(
+    query: GetExchangeRatesQueryDto,
+  ): Promise<PaginatedExchangeRatesResponseDto> {
+    const { name, page = 1, limit = 10 } = query;
+
+    // Фільтрація
+    const where: any = {};
+    if (name) {
+      where.name = {
+        contains: name,
+        mode: 'insensitive',
+      };
+    }
+
+    // Пагінація
+    const skip = (page - 1) * limit;
+
+    // Отримання даних
+    const [data, totalItems] = await Promise.all([
+      this.prismaService.currency.findMany({
+        where,
+        include: {
+          exchangeRates: {
+            orderBy: { date: 'desc' },
+          },
+        },
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prismaService.currency.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      data,
+      meta: {
+        currentPage: page,
+        itemsPerPage: limit,
+        totalItems,
+        totalPages,
       },
-    });
+    };
   }
 
   async getRateHistory(

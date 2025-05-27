@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -19,22 +20,25 @@ import { CurrencyHistoryParamsDto } from './dtos/currency-history-params.dto';
 import { CurrencyIdParamDto } from './dtos/currency-id-param.dto';
 import { TCurrencyWithRates, TExchangeRate, TCurrency } from 'types';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { PaginatedExchangeRatesResponseDto } from './dtos/pagination.dto';
+import { GetExchangeRatesQueryDto } from './dtos/get-all-rates.dto';
 
 @ApiTags('Currency')
 @Controller('currency')
 export class CurrencyController {
   constructor(private readonly currencyService: CurrencyService) {}
 
-  @UseGuards(AuthGuard)
   @Get()
-  @ApiOperation({ summary: 'Get all exchange rates' })
+  @ApiOperation({ summary: 'Get exchange rates with pagination and filtering' })
   @ApiResponse({
     status: 200,
-    description: 'List of all currencies and their rates',
-    example: '',
+    description: 'Paginated list of currencies with their exchange rates',
+    type: PaginatedExchangeRatesResponseDto,
   })
-  async getAllExchangeRates(): Promise<TCurrencyWithRates[]> {
-    return this.currencyService.getAllExchangeRates();
+  async getAllExchangeRates(
+    @Query() query: GetExchangeRatesQueryDto,
+  ): Promise<PaginatedExchangeRatesResponseDto> {
+    return this.currencyService.getAllExchangeRates(query);
   }
 
   @UseGuards(AuthGuard)
