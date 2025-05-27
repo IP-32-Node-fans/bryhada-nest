@@ -65,7 +65,6 @@ export default function CurrenciesTable() {
       setLoading(true)
       const token = localStorage.getItem("token")
       
-      // Будуємо URL з параметрами
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
@@ -473,12 +472,18 @@ export default function CurrenciesTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {history.map((rate, i) => (
+                {history.length > 0 ?  history.map((rate, i) => (
                   <TableRow key={i}>
                     <TableCell>{rate.date}</TableCell>
                     <TableCell>{rate.rate}</TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center">
+                      Немає даних
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
             <div className="text-end mt-4">

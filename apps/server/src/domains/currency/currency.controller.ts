@@ -41,7 +41,6 @@ export class CurrencyController {
     return this.currencyService.getAllExchangeRates(query);
   }
 
-  @UseGuards(AuthGuard)
   @Get('/rates/:date')
   @ApiOperation({ summary: 'Get exchange rates by date' })
   @ApiResponse({
@@ -55,7 +54,6 @@ export class CurrencyController {
     return this.currencyService.getExchangeRatesByDay(dto.date);
   }
 
-  @UseGuards(AuthGuard)
   @Get('/rates/:currencyId/:fromDate/:toDate')
   @ApiOperation({ summary: 'Get currency rate history' })
   @ApiResponse({
