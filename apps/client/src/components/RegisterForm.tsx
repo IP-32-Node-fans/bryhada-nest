@@ -1,5 +1,4 @@
 "use client"
-
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -13,7 +12,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-
+import { useRouter } from "next/navigation"
+ 
 export function RegisterForm({
   className,
   ...props
@@ -21,72 +21,73 @@ export function RegisterForm({
   const [isAdmin, setIsAdmin] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<boolean>(false)
+  const router = useRouter()
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault()
-  const formData = new FormData(event.currentTarget)
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
 
-  const username = formData.get("username")
-  const email = formData.get("email")
-  const password = formData.get("password")
+    const username = formData.get("username")
+    const email = formData.get("email")
+    const password = formData.get("password")
 
-  if (
-    typeof username !== "string" ||
-    typeof email !== "string" ||
-    typeof password !== "string"
-  ) {
-    setError("Форма заповнена неправильно")
-    return
-  }
-
-  try {
-    const res = await fetch("http://localhost:5000/auth/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-        isAdmin: isAdmin,
-      }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      setError(data.message || "Помилка при реєстрації")
+    if (
+      typeof username !== "string" ||
+      typeof email !== "string" ||
+      typeof password !== "string"
+    ) {
+      setError("Форма заповнена неправильно")
       return
     }
 
-    const loginRes = await fetch("http://localhost:5000/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    })
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          isAdmin: isAdmin,
+        }),
+      })
 
-    const loginData = await loginRes.json()
+      const data = await res.json()
 
-    if (!loginRes.ok) {
-      setError(loginData.message || "Реєстрація успішна, але вхід не вдався")
-      return
+      if (!res.ok) {
+        setError(data.message || "Помилка при реєстрації")
+        return
+      }
+
+      const loginRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const loginData = await loginRes.json()
+
+      if (!loginRes.ok) {
+        setError(loginData.message || "Реєстрація успішна, але вхід не вдався")
+        return
+      }
+
+      localStorage.setItem("token", loginData.accessToken)
+      localStorage.setItem("role", loginData.role)
+      setError(null)
+      setSuccess(true)
+
+      console.log("✅ Залогінено після реєстрації:", loginData)
+      router.push("/currencies")
+    } catch (err) {
+      console.error("❌ Запит не вдалий:", err)
+      setError("Сервер недоступний")
     }
-
-    localStorage.setItem("token", loginData.accessToken)
-    setError(null)
-    setSuccess(true)
-
-    console.log("✅ Залогінено після реєстрації:", loginData)
-    window.location.href = "/currencies" 
-
-  } catch (err) {
-    console.error("❌ Запит не вдалий:", err)
-    setError("Сервер недоступний")
   }
-}
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
